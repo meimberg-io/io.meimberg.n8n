@@ -1,0 +1,20 @@
+{
+  "name": "io.meimberg.n8n",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "n8n start",
+    "backup": "n8n export:credentials --backup --output=backupdata/credentials && n8n export:workflow --backup --output=backupdata/workflows",
+    "restore": "n8n import:credentials --separate --input=backupdata/credentials && n8n import:workflow --separate --input=backupdata/workflows",
+    "dev": "n8n start --tunnel",
+    "build": "tsc",
+    "lint": "eslint .",
+    "test": "jest"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "n8n": "^1.82.1"
+  }
+}
