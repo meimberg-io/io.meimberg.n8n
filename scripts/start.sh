@@ -26,6 +26,7 @@ echo "Starting container as user: $DOCKER_USER"
 # Start the container
 docker run -d --name n8n \
   -e WEBHOOK_URL="$WEBHOOK_URL" \
+  -e HOME=/home/node \
   -p ${N8N_PORT}:5678 \
   -v n8n_data:/home/node/.n8n \
   -v /opt/n8n/backup:/home/node/backup \

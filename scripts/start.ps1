@@ -31,6 +31,7 @@ Write-Host "Starting container as user: $DockerUser"
 Write-Host "Starting new container..."
 docker run -d --name n8n `
   -e WEBHOOK_URL="$WEBHOOK_URL" `
+  -e HOME=/home/node `
   -p "${N8N_PORT}:5678" `
   -v n8n_data:/home/node/.n8n `
   -v "${BackupDir}:/home/node/backup" `
