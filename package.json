@@ -15,6 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "n8n": "^1.82.1"
+    "n8n": "^1.93.0",
+    "n8n-nodes-exif-data": "^0.1.2"
   }
 }
