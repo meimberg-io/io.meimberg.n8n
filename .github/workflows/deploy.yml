@@ -82,17 +82,36 @@ jobs:
             
             # Verify deployment
             echo "Waiting for n8n to start..."
-            sleep 10
-            if docker ps | grep -q n8n; then
-              echo "✅ n8n deployed successfully!"
-              echo "🌐 Application is available at: $WEBHOOK_URL"
-              docker ps | grep n8n
-            else
-              echo "❌ Deployment verification failed!"
-              echo "📋 Container logs:"
-              docker logs n8n || true
-              exit 1
-            fi
+            
+            # Wait for systemd service to be active
+            for i in {1..30}; do
+              if systemctl is-active --quiet n8n; then
+                echo "Systemd service is active"
+                break
+              fi
+              echo "Waiting for service... ($i/30)"
+              sleep 1
+            done
+            
+            # Wait for container to appear
+            for i in {1..30}; do
+              if docker ps | grep -q n8n; then
+                echo "✅ n8n deployed successfully!"
+                echo "🌐 Application is available at: $WEBHOOK_URL"
+                docker ps | grep n8n
+                exit 0
+              fi
+              echo "Waiting for container... ($i/30)"
+              sleep 1
+            done
+            
+            # If we get here, deployment failed
+            echo "❌ Deployment verification failed!"
+            echo "📋 Service status:"
+            sudo systemctl status n8n --no-pager || true
+            echo "📋 Container logs:"
+            docker logs n8n 2>&1 || echo "Container not found"
+            exit 1
 
       - name: Cleanup local artifacts
         if: always()
