@@ -23,13 +23,26 @@ if (-not $containerRunning) {
     exit 1
 }
 
-# Export workflows
-Write-Host "Exporting workflows..."
-docker exec n8n n8n export:workflow --backup --output=/home/node/backup/workflows
+# Clean old backup data
+Get-ChildItem -Path $WorkflowsDir -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse
+Get-ChildItem -Path $CredentialsDir -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse
 
-# Export credentials (encrypted)
+# Export workflows (as individual files)
+Write-Host "Exporting workflows..."
+docker exec n8n n8n export:workflow --backup --output=/home/node/backup/workflows/
+
+# Export credentials (as single file with all credentials)
 Write-Host "Exporting credentials..."
-docker exec n8n n8n export:credentials --backup --output=/home/node/backup/credentials
+docker exec n8n n8n export:credentials --output=/home/node/backup/credentials/credentials.json
+
+# Verify files were created
+if (-not (Get-ChildItem -Path $WorkflowsDir -ErrorAction SilentlyContinue)) {
+    Write-Host "[WARNING] No workflows exported" -ForegroundColor Yellow
+}
+
+if (-not (Test-Path "$CredentialsDir\credentials.json")) {
+    Write-Host "[WARNING] No credentials exported" -ForegroundColor Yellow
+}
 
 # Create timestamp
 $Timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
@@ -38,6 +51,10 @@ $Timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 Write-Host "Creating backup archive..."
 $CurrentLocation = Get-Location
 Set-Location $BackupRoot
+
+# List what we're backing up
+Write-Host "Files to backup:"
+Get-ChildItem -Path workflows, credentials -Recurse -File -ErrorAction SilentlyContinue | Select-Object FullName
 
 # Use tar (available in Windows 10 1803+)
 tar -czf backup.tar.gz workflows/ credentials/
@@ -48,9 +65,9 @@ Copy-Item "backup.tar.gz" "backup_${Timestamp}.tar.gz"
 Set-Location $CurrentLocation
 
 Write-Host "[SUCCESS] Backup completed!" -ForegroundColor Green
-Write-Host "📦 Current backup: $BackupRoot\backup.tar.gz"
-Write-Host "📦 Historic backup: $BackupRoot\backup_${Timestamp}.tar.gz"
+Write-Host "Current backup: $BackupRoot\backup.tar.gz"
+Write-Host "Historic backup: $BackupRoot\backup_${Timestamp}.tar.gz"
 Write-Host ""
-Write-Host "Backup contents:"
-Get-ChildItem -Path $BackupRoot -Filter "backup*.tar.gz" | Format-Table Name, Length, LastWriteTime -AutoSize
+Write-Host "Backup archive size:"
+Get-Item "$BackupRoot\backup.tar.gz" | Format-Table Name, Length, LastWriteTime -AutoSize
 

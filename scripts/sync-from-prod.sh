@@ -64,7 +64,7 @@ BACKUP_ROOT="$PROJECT_ROOT/backup"
 mkdir -p "$BACKUP_ROOT"
 
 scp -i "$PROD_SSH_KEY" -P "$PROD_SSH_PORT" \
-    "$PROD_SSH_USER@$PROD_SSH_HOST:$PROD_APP_DIR/backup/backup.tar.gz" \
+    "$PROD_SSH_USER@$PROD_SSH_HOST:$PROD_APP_DIR/deploy/backup/backup.tar.gz" \
     "$BACKUP_ROOT/backup.tar.gz"
 
 if [ $? -ne 0 ]; then

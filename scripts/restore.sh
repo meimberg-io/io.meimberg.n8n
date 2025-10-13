@@ -25,6 +25,10 @@ if ! docker ps | grep -q n8n; then
     exit 1
 fi
 
+# Clean old backup data
+echo "Cleaning old backup data..."
+rm -rf "$BACKUP_ROOT/workflows" "$BACKUP_ROOT/credentials" 2>/dev/null || true
+
 # Extract backup
 echo "Extracting backup..."
 cd "$BACKUP_ROOT"
@@ -45,15 +49,11 @@ fi
 
 # Import credentials
 echo "Importing credentials..."
-if [ -d "$BACKUP_ROOT/credentials" ]; then
-    for credential in "$BACKUP_ROOT/credentials"/*.json; do
-        if [ -f "$credential" ]; then
-            echo "Importing $(basename "$credential")..."
-            docker exec n8n n8n import:credentials --input="/home/node/backup/credentials/$(basename "$credential")"
-        fi
-    done
+if [ -f "$BACKUP_ROOT/credentials/credentials.json" ]; then
+    echo "Importing credentials..."
+    docker exec n8n n8n import:credentials --input="/home/node/backup/credentials/credentials.json"
 else
-    echo "[WARNING] No credentials directory found in backup"
+    echo "[WARNING] No credentials file found in backup"
 fi
 
 echo "[SUCCESS] Restore completed!"

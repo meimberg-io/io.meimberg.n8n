@@ -27,6 +27,13 @@ if (-not $containerRunning) {
     exit 1
 }
 
+# Clean old backup data
+Write-Host "Cleaning old backup data..."
+$WorkflowsDir = Join-Path $BackupRoot "workflows"
+$CredentialsDir = Join-Path $BackupRoot "credentials"
+if (Test-Path $WorkflowsDir) { Remove-Item -Path $WorkflowsDir -Recurse -Force }
+if (Test-Path $CredentialsDir) { Remove-Item -Path $CredentialsDir -Recurse -Force }
+
 # Extract backup
 Write-Host "Extracting backup..."
 $CurrentLocation = Get-Location
@@ -49,19 +56,16 @@ if (Test-Path $WorkflowsDir) {
 
 # Import credentials
 Write-Host "Importing credentials..."
-$CredentialsDir = Join-Path $BackupRoot "credentials"
-if (Test-Path $CredentialsDir) {
-    $credentials = Get-ChildItem -Path $CredentialsDir -Filter "*.json"
-    foreach ($credential in $credentials) {
-        Write-Host "Importing $($credential.Name)..."
-        docker exec n8n n8n import:credentials --input="/home/node/backup/credentials/$($credential.Name)"
-    }
+$CredentialsFile = Join-Path $BackupRoot "credentials\credentials.json"
+if (Test-Path $CredentialsFile) {
+    Write-Host "Importing credentials..."
+    docker exec n8n n8n import:credentials --input="/home/node/backup/credentials/credentials.json"
 } else {
-    Write-Host "[WARNING] No credentials directory found in backup" -ForegroundColor Yellow
+    Write-Host "[WARNING] No credentials file found in backup" -ForegroundColor Yellow
 }
 
 Write-Host "[SUCCESS] Restore completed!" -ForegroundColor Green
 Write-Host ""
-Write-Host "⚠️  You may need to restart n8n for all changes to take effect:"
+Write-Host "WARNING: You may need to restart n8n for all changes to take effect:"
 Write-Host "   .\scripts\restart.ps1"
 
