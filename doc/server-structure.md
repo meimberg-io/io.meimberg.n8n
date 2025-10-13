@@ -42,6 +42,6 @@ The n8n container runs with:
 
 ## See Also
 
-- [Production Setup](production-setup.md) - Server setup instructions
-- [Operations Guide](operations.md) - Monitoring, backup, and maintenance
+- [Production Setup](production-setup.md) - Initial server setup
+- [Operations Guide](operations.md) - Updates, monitoring, backup, and maintenance
 - [Deployment Guide](deployment.md) - GitHub Actions configuration
