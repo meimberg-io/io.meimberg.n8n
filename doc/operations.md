@@ -221,43 +221,81 @@ sudo iptables -L | grep 5678
 
 ## Backup and Restore
 
-### Manual Backup
+### Quick Backup (Recommended)
+
+Use the backup script for a complete backup:
+
+```bash
+# On production or local
+cd /opt/n8n/deploy
+./scripts/backup.sh
+
+# Creates:
+# - backup/backup.tar.gz (latest backup)
+# - backup/backup_YYYY-MM-DD_HH-MM-SS.tar.gz (timestamped copy)
+```
+
+The backup includes:
+- All workflows in `backup/workflows/`
+- All credentials (encrypted) in `backup/credentials/`
+
+### Restore Backup
+
+```bash
+# On production or local
+cd /opt/n8n/deploy
+./scripts/restore.sh
+
+# Restart n8n to apply changes
+./scripts/restart.sh
+```
+
+### Sync from Production to Local Dev
+
+To test with real production data locally:
+
+```bash
+# Configure production SSH in .env (see env.example)
+# PROD_SSH_HOST=n8n.meimberg.io
+# PROD_SSH_USER=n8n
+# PROD_SSH_KEY=~/.ssh/id_rsa
+
+# Run sync script
+./scripts/sync-from-prod.sh  # Linux/macOS
+# or
+.\scripts\sync-from-prod.ps1  # Windows
+```
+
+This will:
+1. Trigger backup on production
+2. Download the backup via SCP
+3. Restore it to your local dev instance
+
+### Manual Backup Commands
+
+If you prefer manual backup:
 
 ```bash
 # Export workflows
-docker exec n8n n8n export:workflow --backup --output=/home/node/backup
+docker exec n8n n8n export:workflow --backup --output=/home/node/backup/workflows
 
 # Export credentials (encrypted)
-docker exec n8n n8n export:credentials --backup --output=/home/node/backup
+docker exec n8n n8n export:credentials --backup --output=/home/node/backup/credentials
 
 # Backup files are in /opt/n8n/backup on the host
 ls -lh /opt/n8n/backup
 ```
 
-### Automated Backup
+### Automated Backup with Cron
 
 Create a cron job for regular backups:
 
 ```bash
-# As n8n user
+# As n8n user on production
 crontab -e
 
-# Add daily backup at 2 AM
-0 2 * * * docker exec n8n n8n export:workflow --backup --output=/home/node/backup/workflows-$(date +\%Y\%m\%d).json
-0 2 * * * docker exec n8n n8n export:credentials --backup --output=/home/node/backup/credentials-$(date +\%Y\%m\%d).json
-```
-
-### Restore from Backup
-
-```bash
-# List available backups
-ls -lh /opt/n8n/backup
-
-# Restore workflows
-docker exec n8n n8n import:workflow --input=/home/node/backup/workflows.json
-
-# Restore credentials
-docker exec n8n n8n import:credentials --input=/home/node/backup/credentials.json
+# Add daily backup at 2 AM using the backup script
+0 2 * * * cd /opt/n8n/deploy && ./scripts/backup.sh >> /opt/n8n/backup/backup.log 2>&1
 ```
 
 ## Updating and Customizing n8n

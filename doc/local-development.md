@@ -190,7 +190,45 @@ Backups are stored in the `backup` folder at the project root. This folder is:
 - Mounted to `/home/node/backup` inside the container
 - Excluded from Git (in `.gitignore`)
 
-### Create a Manual Backup
+### Quick Backup with Scripts
+
+Use the backup and restore scripts (works with both production and dev):
+
+```bash
+# Bash
+./scripts/backup.sh          # Create complete backup
+./scripts/restore.sh         # Restore from backup
+
+# PowerShell
+.\scripts\backup.ps1         # Create complete backup
+.\scripts\restore.ps1        # Restore from backup
+```
+
+### Sync from Production
+
+To work with real production data locally:
+
+1. Configure production SSH in `.env`:
+   ```bash
+   PROD_SSH_HOST=n8n.meimberg.io
+   PROD_SSH_USER=n8n
+   PROD_SSH_KEY=~/.ssh/id_rsa
+   PROD_SSH_PORT=22
+   ```
+
+2. Run sync script:
+   ```bash
+   ./scripts/sync-from-prod.sh    # Linux/macOS
+   # or
+   .\scripts\sync-from-prod.ps1   # Windows
+   ```
+
+This automatically:
+- Creates backup on production
+- Downloads it
+- Restores to your local dev instance
+
+### Manual Backup
 
 From inside the n8n UI:
 1. Go to Settings → Data
@@ -198,17 +236,8 @@ From inside the n8n UI:
 
 Or use the n8n CLI inside the container:
 ```bash
-docker exec -it n8n-dev n8n export:workflow --backup --output=/home/node/backup
-docker exec -it n8n-dev n8n export:credentials --backup --output=/home/node/backup
-```
-
-### Restore from Backup
-
-Place your backup files in the `backup` folder, then:
-
-```bash
-docker exec -it n8n-dev n8n import:workflow --input=/home/node/backup/workflows.json
-docker exec -it n8n-dev n8n import:credentials --input=/home/node/backup/credentials.json
+docker exec -it n8n-dev n8n export:workflow --backup --output=/home/node/backup/workflows
+docker exec -it n8n-dev n8n export:credentials --backup --output=/home/node/backup/credentials
 ```
 
 ## Troubleshooting

@@ -17,6 +17,14 @@ Scripts for managing the n8n Docker container on Linux/Unix/macOS and Windows.
 | `build.sh` | `build.ps1` | Build Docker image |
 | `dev.sh` | `dev.ps1` | Start n8n (interactive) |
 
+## Backup & Restore Scripts
+
+| Linux/Unix | Windows | Description |
+|------------|---------|-------------|
+| `backup.sh` | `backup.ps1` | Create backup (workflows + credentials) |
+| `restore.sh` | `restore.ps1` | Restore from backup |
+| `sync-from-prod.sh` | `sync-from-prod.ps1` | Sync production data to local dev |
+
 ## Usage
 
 ### Linux/Unix/macOS
@@ -31,6 +39,11 @@ Scripts for managing the n8n Docker container on Linux/Unix/macOS and Windows.
 ./scripts/start.sh
 ./scripts/stop.sh
 ./scripts/restart.sh
+
+# Backup & Restore
+./scripts/backup.sh           # Create backup
+./scripts/restore.sh          # Restore backup
+./scripts/sync-from-prod.sh   # Sync from production
 ```
 
 ### Windows
@@ -45,6 +58,11 @@ Scripts for managing the n8n Docker container on Linux/Unix/macOS and Windows.
 .\scripts\start.ps1
 .\scripts\stop.ps1
 .\scripts\restart.ps1
+
+# Backup & Restore
+.\scripts\backup.ps1           # Create backup
+.\scripts\restore.ps1          # Restore backup
+.\scripts\sync-from-prod.ps1   # Sync from production
 ```
 
 ## Configuration
@@ -76,7 +94,19 @@ export N8N_PORT="8080"
 - Auto-remove on stop
 - Loads `.env` file if present
 
+**Backup scripts**:
+- Creates `backup.tar.gz` with workflows and credentials
+- Also creates timestamped copy: `backup_YYYY-MM-DD_HH-MM-SS.tar.gz`
+- Workflows saved to: `backup/workflows/`
+- Credentials saved to: `backup/credentials/` (encrypted)
+
+**Sync script**:
+- Requires production SSH config in `.env` (copy from `env.example`)
+- Triggers backup on production, downloads it, and restores locally
+- Useful for testing with real production data
+
 ## See Also
 
 - [Local Development Guide](../doc/local-development.md)
 - [Production Setup](../doc/production-setup.md)
+- [Operations Guide](../doc/operations.md) - Backup strategies
