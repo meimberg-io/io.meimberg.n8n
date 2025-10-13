@@ -21,7 +21,7 @@ Automated deployment via GitHub Actions on push to `main` branch.
 ## Dokumentation
 
 ### Production
-* [Production Setup](setup/production-setup.md) ⭐ **Initial production setup** (one-time)
+* [Production Setup](doc/production-setup.md) ⭐ **Initial production setup** (one-time)
 * [Operations Guide](doc/operations.md) 🔧 **Daily operations** (maintenance, monitoring, troubleshooting)
 * [Server Structure](doc/server-structure.md) - Directory layout on production
 * [Deployment](doc/deployment.md) - GitHub Actions deployment configuration

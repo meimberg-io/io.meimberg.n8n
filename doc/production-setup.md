@@ -2,7 +2,7 @@
 
 This guide walks you through the initial setup of n8n for production with automatic restart on server reboot.
 
-> **After setup:** See [Operations Guide](../doc/operations.md) for service management, monitoring, and troubleshooting.
+> **After setup:** See [Operations Guide](operations.md) for service management, monitoring, and troubleshooting.
 
 ## Architecture Overview
 

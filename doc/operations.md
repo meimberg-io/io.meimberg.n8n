@@ -2,7 +2,7 @@
 
 This guide covers daily operations, maintenance, monitoring, and troubleshooting of your production n8n instance.
 
-> **Prerequisites:** You should have completed the [Production Setup](../setup/production-setup.md) before using this guide.
+> **Prerequisites:** You should have completed the [Production Setup](production-setup.md) before using this guide.
 
 ## Service Management
 
@@ -375,7 +375,7 @@ However, **systemd is still recommended** because it provides:
 ## Getting Help
 
 ### Check Documentation
-- [Production Setup](../setup/production-setup.md)
+- [Production Setup](production-setup.md)
 - [Server Structure](server-structure.md)
 - [Deployment Guide](deployment.md)
 
