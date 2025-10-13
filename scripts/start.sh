@@ -12,13 +12,24 @@ echo "N8N_PORT: $N8N_PORT"
 # Remove any existing container
 docker rm -f n8n 2>/dev/null || true
 
+# Determine user:group to run container as
+# On production (/opt/n8n exists), use current user
+# On local dev, use 1000:1000 (default node user)
+if [ -d "/opt/n8n" ]; then
+  DOCKER_USER="$(id -u):$(id -g)"
+else
+  DOCKER_USER="1000:1000"
+fi
+
+echo "Starting container as user: $DOCKER_USER"
+
 # Start the container
 docker run -d --name n8n \
   -e WEBHOOK_URL="$WEBHOOK_URL" \
   -p ${N8N_PORT}:5678 \
   -v n8n_data:/home/node/.n8n \
   -v /opt/n8n/backup:/home/node/backup \
-  --user 1000:1000 \
+  --user $DOCKER_USER \
   --restart always \
   n8n-custom
 

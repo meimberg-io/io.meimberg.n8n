@@ -24,6 +24,9 @@ if (-not $containerRunning) {
 }
 
 # Clean old backup data
+Write-Host "Cleaning backup directories..."
+Write-Host "  Workflows: $WorkflowsDir"
+Write-Host "  Credentials: $CredentialsDir"
 Get-ChildItem -Path $WorkflowsDir -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse
 Get-ChildItem -Path $CredentialsDir -ErrorAction SilentlyContinue | Remove-Item -Force -Recurse
 

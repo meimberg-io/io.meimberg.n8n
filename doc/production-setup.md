@@ -39,8 +39,7 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 
 ```bash
 # Create user with home directory at /opt/n8n
-# Use UID 1000 to match container's node user for backup permissions
-sudo useradd -u 1000 -d /opt/n8n -s /bin/bash n8n
+sudo useradd -d /opt/n8n -s /bin/bash n8n
 
 # Add to docker group
 sudo usermod -aG docker n8n
@@ -49,26 +48,11 @@ sudo usermod -aG docker n8n
 sudo mkdir -p /opt/n8n/deploy
 sudo mkdir -p /opt/n8n/backup
 
-# Set ownership (1000:1000 matches container's node user)
-sudo chown -R 1000:1000 /opt/n8n
+# Set ownership
+sudo chown -R n8n:docker /opt/n8n
 ```
 
-**Note:** If UID 1000 is already taken, use a different UID and fix backup permissions:
-```bash
-# Create user with any available UID
-sudo useradd -d /opt/n8n -s /bin/bash n8n
-sudo usermod -aG docker n8n
-
-# Create directories
-sudo mkdir -p /opt/n8n/deploy
-sudo mkdir -p /opt/n8n/backup
-
-# Set ownership for deploy directory
-sudo chown -R n8n:docker /opt/n8n/deploy
-
-# Backup directory must be writable by container's node user (UID 1000)
-sudo chown -R 1000:1000 /opt/n8n/backup
-```
+**Note:** The container will automatically run as the n8n user, so no special UID configuration is needed.
 
 ### 3. Setup SSH Access for Deployment
 

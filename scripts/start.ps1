@@ -23,6 +23,10 @@ Write-Host "BACKUP_DIR: $BackupDir"
 Write-Host "Removing existing container (if any)..."
 docker rm -f n8n 2>$null
 
+# On Windows, always use default node user (permission handling is different)
+$DockerUser = "1000:1000"
+Write-Host "Starting container as user: $DockerUser"
+
 # Start the container
 Write-Host "Starting new container..."
 docker run -d --name n8n `
@@ -30,7 +34,7 @@ docker run -d --name n8n `
   -p "${N8N_PORT}:5678" `
   -v n8n_data:/home/node/.n8n `
   -v "${BackupDir}:/home/node/backup" `
-  --user 1000:1000 `
+  --user $DockerUser `
   --restart always `
   n8n-custom
 
