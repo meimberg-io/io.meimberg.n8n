@@ -115,7 +115,8 @@ Wants=network-online.target
 Requires=docker.service
 
 [Service]
-Type=forking
+Type=oneshot
+RemainAfterExit=yes
 User=n8n
 Group=docker
 WorkingDirectory=/opt/n8n
@@ -127,7 +128,6 @@ Environment="N8N_PORT=5678"
 # Use the deployment scripts
 ExecStart=/opt/n8n/deploy/scripts/start.sh
 ExecStop=/opt/n8n/deploy/scripts/stop.sh
-ExecReload=/opt/n8n/deploy/scripts/restart.sh
 
 # Restart policy
 Restart=on-failure

@@ -1,56 +1,98 @@
-# Update (docker) auf live
+# How-To Guide
+
+Common tasks and workflows for n8n.
+
+## Update n8n Version
+
+Update the n8n version via Git:
 
 ```bash
-# als root
+# Edit Dockerfile
+vim Dockerfile
 
-vim /opt/n8n/Dockerfile # Version anpassen
-docker build -t n8n-custom /opt/n8n
-systemctl restart n8n.service
+# Change version
+FROM docker.n8n.io/n8nio/n8n:1.120.0  # Update version number
 
+# Commit and push
+git add Dockerfile
+git commit -m "chore: update n8n to v1.120.0"
+git push origin main
 ```
 
-# Install libs on OS level
+GitHub Actions will automatically deploy the new version.
+
+## Add System Dependencies
+
+To add Alpine packages (e.g., for custom nodes):
 
 ```bash
-# als root
-vim /opt/n8n/Dockerfile
-```
-In der entsperechenden Zeile die lib hinzufügen, z.B.:
-```dockerfile
-RUN apk update &&  apk add --no-cache perl mynewlib poppler-utils imagemagick
+# Edit Dockerfile
+vim Dockerfile
+
+# Add package to RUN command
+RUN apk update && apk add --no-cache perl poppler-utils imagemagick mynewpackage
+
+# Commit and push
+git add Dockerfile
+git commit -m "feat: add mynewpackage system dependency"
+git push origin main
 ```
 
-Neu builden und restarten
+## Install Community Nodes
+
+To install n8n community nodes:
+
 ```bash
-docker build -t n8n-custom /opt/n8n
-systemctl restart n8n.service
-```
+# Edit Dockerfile
+vim Dockerfile
 
-
-# Install node packages (community nodes)
-
-```bash
-# als root
-vim /opt/n8n/Dockerfile
-```
-Folgendes hinzufügen (USER und WORKDIR vermutlich schon vohanden)
-
-```dockerfile
+# Add at the end (before any commented sections)
 USER node
 WORKDIR /home/node/.n8n/nodes
-RUN npm i n8n-nodes-pdf2image
+RUN npm install n8n-nodes-package-name
+
+# Commit and push
+git add Dockerfile
+git commit -m "feat: add n8n-nodes-package-name"
+git push origin main
 ```
 
-Neu builden und restarten
+## Quick Commands
+
+### Restart n8n
 ```bash
-docker build -t n8n-custom /opt/n8n
-systemctl restart n8n.service
+# On server
+sudo systemctl restart n8n
 ```
 
-# Backup
+### View Logs
+```bash
+# Service logs
+sudo journalctl -u n8n -f
 
-```sh
-docker exec -it n8n n8n import:workflow --input=/home/node/backup/workflows.json
-docker exec -it n8n n8n import:credentials --input=/home/node/backup/credentials.json
+# Container logs
+docker logs n8n -f
 ```
 
+### Manual Backup
+```bash
+# Export workflows
+docker exec n8n n8n export:workflow --backup --output=/home/node/backup
+
+# Export credentials
+docker exec n8n n8n export:credentials --backup --output=/home/node/backup
+```
+
+### Restore from Backup
+```bash
+# Import workflows
+docker exec n8n n8n import:workflow --input=/home/node/backup/workflows.json
+
+# Import credentials
+docker exec n8n n8n import:credentials --input=/home/node/backup/credentials.json
+```
+
+## See Also
+
+- [Operations Guide](operations.md) - Detailed operations documentation
+- [Local Development](local-development.md) - Run n8n locally
