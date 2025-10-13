@@ -1,4 +1,5 @@
-/backupdata/
+/backup/
 /node_modules/
 /.n8n/
 /.cache/
+.env

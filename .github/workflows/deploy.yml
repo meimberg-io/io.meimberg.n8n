@@ -1,0 +1,102 @@
+name: Deploy n8n to Production
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  APP_NAME: "n8n"
+  WEBHOOK_URL: ${{ vars.WEBHOOK_URL }}
+  N8N_PORT: ${{ vars.N8N_PORT || '5678' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t n8n-custom .
+
+      - name: Save Docker image
+        run: |
+          docker save n8n-custom | gzip > n8n-custom.tar.gz
+
+      - name: Copy files to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ vars.HOST }}
+          username: ${{ vars.USERNAME || 'n8n' }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "n8n-custom.tar.gz,scripts/*"
+          target: "/opt/n8n/deploy"
+
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ vars.HOST }}
+          username: ${{ vars.USERNAME || 'n8n' }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ vars.PORT || 22 }}
+          script: |
+            # Setup variables
+            APP_NAME=${{ env.APP_NAME }}
+            WEBHOOK_URL="${{ env.WEBHOOK_URL }}"
+            N8N_PORT="${{ env.N8N_PORT }}"
+            APP_DIR="/opt/$APP_NAME"
+            
+            cd $APP_DIR/deploy
+            
+            # Load Docker image
+            docker load < n8n-custom.tar.gz
+            
+            # Make scripts executable
+            chmod +x scripts/*.sh
+            
+            # Export environment variables for scripts
+            export WEBHOOK_URL=$WEBHOOK_URL
+            export N8N_PORT=$N8N_PORT
+            
+            # Start or restart the service via systemctl
+            # Note: n8n user needs sudo permissions for systemctl n8n commands
+            if systemctl is-active --quiet n8n; then
+              echo "Service is running, restarting..."
+              sudo /usr/bin/systemctl restart n8n
+            else
+              echo "Service is not running, starting..."
+              sudo /usr/bin/systemctl start n8n
+            fi
+            
+            # Cleanup
+            rm n8n-custom.tar.gz
+            
+            # Clean up old Docker images
+            docker image prune -f
+            
+            # Verify deployment
+            echo "Waiting for n8n to start..."
+            sleep 10
+            if docker ps | grep -q n8n; then
+              echo "✅ n8n deployed successfully!"
+              echo "🌐 Application is available at: $WEBHOOK_URL"
+              docker ps | grep n8n
+            else
+              echo "❌ Deployment verification failed!"
+              echo "📋 Container logs:"
+              docker logs n8n || true
+              exit 1
+            fi
+
+      - name: Cleanup local artifacts
+        if: always()
+        run: |
+          rm -f n8n-custom.tar.gz
+
