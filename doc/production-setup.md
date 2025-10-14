@@ -49,10 +49,14 @@ sudo mkdir -p /opt/n8n/deploy
 sudo mkdir -p /opt/n8n/backup
 
 # Set ownership
-sudo chown -R n8n:docker /opt/n8n
+# deploy owned by n8n user for git operations
+sudo chown -R n8n:docker /opt/n8n/deploy
+
+# backup owned by UID 1000 (container's node user) for file exports
+sudo chown -R 1000:1000 /opt/n8n/backup
 ```
 
-**Note:** The container will automatically run as the n8n user, so no special UID configuration is needed.
+**Note:** The container runs as UID 1000 (node user), which needs write access to `/opt/n8n/backup`.
 
 ### 3. Setup SSH Access for Deployment
 

@@ -12,14 +12,8 @@ echo "N8N_PORT: $N8N_PORT"
 # Remove any existing container
 docker rm -f n8n 2>/dev/null || true
 
-# Determine user:group to run container as
-# On production (/opt/n8n exists), use current user
-# On local dev, use 1000:1000 (default node user)
-if [ -d "/opt/n8n" ]; then
-  DOCKER_USER="$(id -u):$(id -g)"
-else
-  DOCKER_USER="1000:1000"
-fi
+# Always use 1000:1000 to match n8n's internal node user
+DOCKER_USER="1000:1000"
 
 echo "Starting container as user: $DOCKER_USER"
 
