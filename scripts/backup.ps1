@@ -36,7 +36,7 @@ docker exec n8n n8n export:workflow --backup --output=/home/node/backup/workflow
 
 # Export credentials (as single file with all credentials)
 Write-Host "Exporting credentials..."
-docker exec n8n n8n export:credentials --output=/home/node/backup/credentials/credentials.json
+docker exec n8n n8n export:credentials --all --output=/home/node/backup/credentials/credentials.json
 
 # Verify files were created
 if (-not (Get-ChildItem -Path $WorkflowsDir -ErrorAction SilentlyContinue)) {

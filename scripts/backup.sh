@@ -44,7 +44,7 @@ ls -la "$WORKFLOWS_DIR" || echo "Cannot list $WORKFLOWS_DIR"
 
 # Export credentials (as single file with all credentials)
 echo "Exporting credentials..."
-docker exec n8n n8n export:credentials --output=/home/node/backup/credentials/credentials.json
+docker exec n8n n8n export:credentials --all --output=/home/node/backup/credentials/credentials.json
 
 echo "Checking credentials export..."
 ls -la "$CREDENTIALS_DIR" || echo "Cannot list $CREDENTIALS_DIR"
