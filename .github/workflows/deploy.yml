@@ -86,9 +86,8 @@ jobs:
           mkdir -p /srv/projects/n8n
           cd /srv/projects/n8n
           
-          # Create backup directory (owned by UID 1000 for n8n container)
-          sudo mkdir -p /srv/projects/n8n/backup
-          sudo chown -R 1000:1000 /srv/projects/n8n/backup
+          # Create backup directory (will be owned by UID 1000 via container)
+          mkdir -p /srv/projects/n8n/backup
           
           # Substitute variables in docker-compose template
           export DOCKER_IMAGE="${DOCKER_IMAGE}"
