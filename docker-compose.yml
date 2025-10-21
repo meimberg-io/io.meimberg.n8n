@@ -1,0 +1,56 @@
+# Unified docker-compose.yml for both local development and production testing
+services:
+  # Base service definition
+  n8n-base:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Europe/Berlin}
+      - TZ=${TZ:-Europe/Berlin}
+      - N8N_LOG_LEVEL=${N8N_LOG_LEVEL:-info}
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-false}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+    restart: unless-stopped
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Development service with volumes
+  n8n-dev:
+    profiles: ["dev"]
+    extends: n8n-base
+    container_name: n8n-dev
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./backupdata:/home/node/backup
+
+  # Production service (for local testing)
+  n8n-prod:
+    profiles: ["prod"]
+    extends: n8n-base
+    container_name: n8n-prod
+    volumes:
+      - n8n_data_prod:/home/node/.n8n
+      - ./backupdata:/home/node/backup
+
+volumes:
+  n8n_data:
+    name: n8n_data
+  n8n_data_prod:
+    name: n8n_data_prod
+
+networks:
+  n8n-network:
+    driver: bridge
+

@@ -1,0 +1,37 @@
+# Production docker-compose.yml template
+# This file is copied to the server by GitHub Actions and processed with envsubst
+# Environment variables are substituted during deployment
+
+version: "3.9"
+
+services:
+  n8n:
+    image: ${DOCKER_IMAGE}
+    container_name: n8n
+    restart: unless-stopped
+    environment:
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - GENERIC_TIMEZONE=Europe/Berlin
+      - TZ=Europe/Berlin
+      - N8N_LOG_LEVEL=info
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./backup:/home/node/backup
+    labels:
+      # Traefik automatic routing
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n.rule=Host(\`${APP_DOMAIN}\`)"
+      - "traefik.http.routers.n8n.entrypoints=websecure"
+      - "traefik.http.routers.n8n.tls.certresolver=le"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+    networks:
+      - traefik
+
+volumes:
+  n8n_data:
+    name: n8n_data
+
+networks:
+  traefik:
+    external: true
+

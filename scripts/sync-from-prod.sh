@@ -37,7 +37,7 @@ fi
 
 # Set defaults
 PROD_SSH_PORT="${PROD_SSH_PORT:-22}"
-PROD_APP_DIR="${PROD_APP_DIR:-/opt/n8n}"
+PROD_APP_DIR="${PROD_APP_DIR:-/srv/projects/n8n}"
 
 echo "🔄 Syncing n8n data from production..."
 echo "   Host: $PROD_SSH_USER@$PROD_SSH_HOST:$PROD_SSH_PORT"
@@ -46,9 +46,15 @@ echo ""
 
 # Step 1: Trigger backup on production
 echo "📦 Step 1/3: Creating backup on production..."
-ssh -i "$PROD_SSH_KEY" -p "$PROD_SSH_PORT" "$PROD_SSH_USER@$PROD_SSH_HOST" << 'EOF'
-cd /opt/n8n/deploy
-./scripts/backup.sh
+ssh -i "$PROD_SSH_KEY" -p "$PROD_SSH_PORT" "$PROD_SSH_USER@$PROD_SSH_HOST" << EOF
+# Export workflows and credentials
+docker exec n8n n8n export:workflow --backup --output=/home/node/backup/workflows/
+docker exec n8n n8n export:credentials --all --output=/home/node/backup/credentials/credentials.json
+
+# Create tar archive
+cd $PROD_APP_DIR
+tar -czf backup/backup.tar.gz -C backup workflows/ credentials/
+echo "Backup created at $PROD_APP_DIR/backup/backup.tar.gz"
 EOF
 
 if [ $? -ne 0 ]; then
@@ -60,11 +66,11 @@ echo ""
 
 # Step 2: Download backup
 echo "⬇️  Step 2/3: Downloading backup from production..."
-BACKUP_ROOT="$PROJECT_ROOT/backup"
+BACKUP_ROOT="$PROJECT_ROOT/backupdata"
 mkdir -p "$BACKUP_ROOT"
 
 scp -i "$PROD_SSH_KEY" -P "$PROD_SSH_PORT" \
-    "$PROD_SSH_USER@$PROD_SSH_HOST:$PROD_APP_DIR/deploy/backup/backup.tar.gz" \
+    "$PROD_SSH_USER@$PROD_SSH_HOST:$PROD_APP_DIR/backup/backup.tar.gz" \
     "$BACKUP_ROOT/backup.tar.gz"
 
 if [ $? -ne 0 ]; then
@@ -82,6 +88,6 @@ echo ""
 echo "[SUCCESS] Production data synced to local development!"
 echo ""
 echo "⚠️  Remember to restart your local n8n:"
-echo "   ./scripts/restart.sh (if running in background)"
-echo "   Or restart your dev.sh session"
+echo "   docker compose --profile dev restart"
+echo "   Or if not running, start with: docker compose --profile dev up"
 

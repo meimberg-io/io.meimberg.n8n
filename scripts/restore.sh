@@ -6,7 +6,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-BACKUP_ROOT="$PROJECT_ROOT/backup"
+BACKUP_ROOT="$PROJECT_ROOT/backupdata"
 
 # Check if backup exists
 if [ ! -f "$BACKUP_ROOT/backup.tar.gz" ]; then
@@ -19,11 +19,23 @@ fi
 echo "Starting n8n restore..."
 
 # Check if container is running
-if ! docker ps | grep -q n8n; then
+# Check for n8n-dev (local) or n8n (production style) or n8n-prod (testing)
+CONTAINER_NAME=""
+if docker ps | grep -q "n8n-dev"; then
+    CONTAINER_NAME="n8n-dev"
+elif docker ps | grep -q " n8n$"; then
+    CONTAINER_NAME="n8n"
+elif docker ps | grep -q "n8n-prod"; then
+    CONTAINER_NAME="n8n-prod"
+fi
+
+if [ -z "$CONTAINER_NAME" ]; then
     echo "[ERROR] n8n container is not running!"
-    echo "Start n8n first with: ./scripts/start.sh or ./scripts/dev.sh"
+    echo "Start n8n first with: docker compose --profile dev up"
     exit 1
 fi
+
+echo "Using container: $CONTAINER_NAME"
 
 # Clean old backup data
 echo "Cleaning old backup data..."
@@ -40,7 +52,7 @@ if [ -d "$BACKUP_ROOT/workflows" ]; then
     for workflow in "$BACKUP_ROOT/workflows"/*.json; do
         if [ -f "$workflow" ]; then
             echo "Importing $(basename "$workflow")..."
-            docker exec n8n n8n import:workflow --input="/home/node/backup/workflows/$(basename "$workflow")"
+            docker exec "$CONTAINER_NAME" n8n import:workflow --input="/home/node/backup/workflows/$(basename "$workflow")"
         fi
     done
 else
@@ -51,7 +63,7 @@ fi
 echo "Importing credentials..."
 if [ -f "$BACKUP_ROOT/credentials/credentials.json" ]; then
     echo "Importing credentials..."
-    docker exec n8n n8n import:credentials --input="/home/node/backup/credentials/credentials.json"
+    docker exec "$CONTAINER_NAME" n8n import:credentials --input="/home/node/backup/credentials/credentials.json"
 else
     echo "[WARNING] No credentials file found in backup"
 fi
@@ -59,5 +71,5 @@ fi
 echo "[SUCCESS] Restore completed!"
 echo ""
 echo "⚠️  You may need to restart n8n for all changes to take effect:"
-echo "   ./scripts/restart.sh"
+echo "   docker compose --profile dev restart"
 

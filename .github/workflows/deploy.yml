@@ -1,4 +1,4 @@
-name: Deploy n8n to Production
+name: Build and Deploy n8n
 
 on:
   push:
@@ -6,115 +6,113 @@ on:
   workflow_dispatch:
 
 env:
-  APP_NAME: "n8n"
-  WEBHOOK_URL: ${{ vars.WEBHOOK_URL }}
-  N8N_PORT: ${{ vars.N8N_PORT || '5678' }}
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+    permissions:
+      contents: read
+      packages: write
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Docker image
-        run: |
-          docker build -t n8n-custom .
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=semver,pattern={{version}}
+          type=raw,value=latest
 
-      - name: Save Docker image
-        run: |
-          docker save n8n-custom | gzip > n8n-custom.tar.gz
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Copy files to server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ vars.HOST }}
-          username: ${{ vars.USERNAME  }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "n8n-custom.tar.gz,scripts/*"
-          target: "/opt/n8n/deploy"
-
-      - name: Deploy on server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ vars.HOST }}
-          username: ${{ vars.USERNAME  }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            # Setup variables
-            APP_NAME=${{ env.APP_NAME }}
-            WEBHOOK_URL="${{ env.WEBHOOK_URL }}"
-            N8N_PORT="${{ env.N8N_PORT }}"
-            APP_DIR="/opt/$APP_NAME"
-            
-            cd $APP_DIR/deploy
-            
-            # Load Docker image
-            docker load < n8n-custom.tar.gz
-            
-            # Make scripts executable
-            chmod +x scripts/*.sh
-            
-            # Export environment variables for scripts
-            export WEBHOOK_URL=$WEBHOOK_URL
-            export N8N_PORT=$N8N_PORT
-            
-            # Start or restart the service via systemctl
-            # Note: n8n user needs sudo permissions for systemctl n8n commands
-            if systemctl is-active --quiet n8n; then
-              echo "Service is running, restarting..."
-              sudo /usr/bin/systemctl restart n8n
-            else
-              echo "Service is not running, starting..."
-              sudo /usr/bin/systemctl start n8n
-            fi
-            
-            # Cleanup
-            rm n8n-custom.tar.gz
-            
-            # Clean up old Docker images
-            docker image prune -f
-            
-            # Verify deployment
-            echo "Waiting for n8n to start..."
-            
-            # Wait for systemd service to be active
-            for i in {1..30}; do
-              if systemctl is-active --quiet n8n; then
-                echo "Systemd service is active"
-                break
-              fi
-              echo "Waiting for service... ($i/30)"
-              sleep 1
-            done
-            
-            # Wait for container to appear
-            for i in {1..30}; do
-              if docker ps | grep -q n8n; then
-                echo "✅ n8n deployed successfully!"
-                echo "🌐 Application is available at: $WEBHOOK_URL"
-                docker ps | grep n8n
-                exit 0
-              fi
-              echo "Waiting for container... ($i/30)"
-              sleep 1
-            done
-            
-            # If we get here, deployment failed
-            echo "❌ Deployment verification failed!"
-            echo "📋 Service status:"
-            sudo systemctl status n8n --no-pager || true
-            echo "📋 Container logs:"
-            docker logs n8n 2>&1 || echo "Container not found"
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    env:
+      APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+      DOCKER_IMAGE: ghcr.io/${{ github.repository }}:latest
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      WEBHOOK_URL: ${{ vars.WEBHOOK_URL }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Copy docker-compose template to server
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ vars.SERVER_HOST }}
+        username: ${{ vars.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: "docker-compose.prod.yml"
+        target: "/srv/projects/n8n/"
+    
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ vars.SERVER_HOST }}
+        username: ${{ vars.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        envs: GITHUB_TOKEN,DOCKER_IMAGE,APP_DOMAIN,WEBHOOK_URL
+        script: |
+          set -e
+          
+          # Login to GitHub Container Registry
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          # Create project directory
+          mkdir -p /srv/projects/n8n
+          cd /srv/projects/n8n
+          
+          # Create backup directory (owned by UID 1000 for n8n container)
+          sudo mkdir -p /srv/projects/n8n/backup
+          sudo chown -R 1000:1000 /srv/projects/n8n/backup
+          
+          # Substitute variables in docker-compose template
+          export DOCKER_IMAGE="${DOCKER_IMAGE}"
+          export APP_DOMAIN="${APP_DOMAIN}"
+          export WEBHOOK_URL="${WEBHOOK_URL}"
+          
+          envsubst < docker-compose.prod.yml > docker-compose.yml
+          
+          echo "Generated docker-compose.yml:"
+          cat docker-compose.yml
+          
+          # Pull latest image and deploy
+          docker compose pull
+          docker compose up -d
+          
+          # Wait for container to be ready
+          sleep 5
+          
+          # Verify deployment
+          if docker ps | grep -q n8n; then
+            echo "✅ n8n deployed successfully!"
+            echo "🌐 Accessible at: https://${APP_DOMAIN}"
+          else
+            echo "❌ Deployment failed - container not running"
+            docker logs n8n
             exit 1
-
-      - name: Cleanup local artifacts
-        if: always()
-        run: |
-          rm -f n8n-custom.tar.gz
-
+          fi

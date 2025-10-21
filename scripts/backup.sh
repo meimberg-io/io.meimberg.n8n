@@ -7,12 +7,12 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# On production, backup is at /opt/n8n/backup (mounted to container)
-# On local dev, backup is at project_root/backup
-if [ -d "/opt/n8n/backup" ]; then
-    BACKUP_ROOT="/opt/n8n/backup"
+# On production, backup is at /srv/projects/n8n/backup (mounted to container)
+# On local dev, backup is at project_root/backupdata
+if [ -d "/srv/projects/n8n/backup" ]; then
+    BACKUP_ROOT="/srv/projects/n8n/backup"
 else
-    BACKUP_ROOT="$PROJECT_ROOT/backup"
+    BACKUP_ROOT="$PROJECT_ROOT/backupdata"
 fi
 
 # Create backup directories
@@ -23,11 +23,24 @@ mkdir -p "$CREDENTIALS_DIR"
 
 echo "Starting n8n backup..."
 
-# Check if container is running
-if ! docker ps | grep -q n8n; then
+# Check if container is running and determine container name
+# Check for n8n-dev (local) or n8n (production) or n8n-prod (testing)
+CONTAINER_NAME=""
+if docker ps | grep -q "n8n-dev"; then
+    CONTAINER_NAME="n8n-dev"
+elif docker ps | grep -q " n8n$"; then
+    CONTAINER_NAME="n8n"
+elif docker ps | grep -q "n8n-prod"; then
+    CONTAINER_NAME="n8n-prod"
+fi
+
+if [ -z "$CONTAINER_NAME" ]; then
     echo "[ERROR] n8n container is not running!"
+    echo "Start n8n first with: docker compose --profile dev up"
     exit 1
 fi
+
+echo "Using container: $CONTAINER_NAME"
 
 # Clean old backup data
 echo "Cleaning backup directories..."
@@ -37,14 +50,14 @@ rm -rf "$WORKFLOWS_DIR"/* "$CREDENTIALS_DIR"/* 2>/dev/null || true
 
 # Export workflows (as individual files)
 echo "Exporting workflows..."
-docker exec n8n n8n export:workflow --backup --output=/home/node/backup/workflows/
+docker exec "$CONTAINER_NAME" n8n export:workflow --backup --output=/home/node/backup/workflows/
 
 echo "Checking workflows export..."
 ls -la "$WORKFLOWS_DIR" || echo "Cannot list $WORKFLOWS_DIR"
 
 # Export credentials (as single file with all credentials)
 echo "Exporting credentials..."
-docker exec n8n n8n export:credentials --all --output=/home/node/backup/credentials/credentials.json
+docker exec "$CONTAINER_NAME" n8n export:credentials --all --output=/home/node/backup/credentials/credentials.json
 
 echo "Checking credentials export..."
 ls -la "$CREDENTIALS_DIR" || echo "Cannot list $CREDENTIALS_DIR"
@@ -72,8 +85,14 @@ echo "Files to backup:"
 find "$BACKUP_ROOT/workflows" "$BACKUP_ROOT/credentials" -type f 2>/dev/null | head -5
 echo "  ... (showing first 5 files)"
 
-# Archive location (in deploy folder for easy scp download)
-ARCHIVE_DIR="$PROJECT_ROOT/backup"
+# Archive location (in backupdata folder for easy scp download on local, or same location on prod)
+if [ -d "/srv/projects/n8n/backup" ]; then
+    # Production: keep archive in the same backup directory
+    ARCHIVE_DIR="$BACKUP_ROOT"
+else
+    # Local: keep archive in backupdata directory
+    ARCHIVE_DIR="$PROJECT_ROOT/backupdata"
+fi
 mkdir -p "$ARCHIVE_DIR"
 echo "  To: $ARCHIVE_DIR/backup.tar.gz"
 
