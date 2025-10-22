@@ -16,7 +16,7 @@ services:
       - N8N_LOG_LEVEL=info
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./backup:/home/node/backup
+      - /srv/backups/n8n:/home/node/backup
     labels:
       # Traefik automatic routing
       - "traefik.enable=true"
