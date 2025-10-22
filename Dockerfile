@@ -5,6 +5,5 @@ USER root
 # Install Tesseract OCR for Alpine Linux
 RUN apk update &&  apk add --no-cache perl poppler-utils imagemagick ghostscript graphicsmagick poppler-utils
 
-#USER node
-#WORKDIR /home/node/.n8n/nodes
-#RUN npm uninstall n8n-nodes-pdf2image
+# Switch back to node user so n8n stores data in /home/node/.n8n (where volume is mounted)
+USER node
