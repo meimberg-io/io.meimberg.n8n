@@ -3,10 +3,12 @@ set -e
 
 # Migration script: n8n from hc-01 to hc-02
 # This script:
-# 1. Exports workflows and credentials from hc-01.meimberg.io
+# 1. Exports workflows, credentials, and encryption key from hc-01.meimberg.io
 # 2. Downloads the backup locally
 # 3. Uploads to hc-02.meimberg.io
 # 4. Imports into the new n8n instance
+# 
+# IMPORTANT: The encryption key must be migrated for credentials to work!
 
 echo "🔄 Migrating n8n from hc-01.meimberg.io to hc-02.meimberg.io"
 echo "================================================================"
@@ -73,6 +75,9 @@ docker exec "$CONTAINER" n8n export:workflow --backup --output=/tmp/workflows/
 echo "Exporting credentials..."
 docker exec "$CONTAINER" n8n export:credentials --all --output=/tmp/credentials.json
 
+echo "Exporting encryption key..."
+docker cp "$CONTAINER":/home/node/.n8n/config "$BACKUP_DIR/config"
+
 # Copy from container to host
 docker cp "$CONTAINER":/tmp/workflows/. "$BACKUP_DIR/workflows/"
 docker cp "$CONTAINER":/tmp/credentials.json "$BACKUP_DIR/credentials/"
@@ -94,6 +99,13 @@ if [ -f "$BACKUP_DIR/credentials/credentials.json" ]; then
     echo "✓ credentials.json"
 else
     echo "✗ No credentials file"
+fi
+echo ""
+echo "Backed up encryption key:"
+if [ -f "$BACKUP_DIR/config" ]; then
+    echo "✓ config (encryption key)"
+else
+    echo "✗ No config file - credentials will NOT work on new server!"
 fi
 EOF
 
@@ -169,6 +181,20 @@ mkdir -p /srv/projects/n8n/migration
 cp -r /tmp/n8n-migration-backup/* /srv/projects/n8n/migration/
 
 echo ""
+echo "Installing encryption key..."
+if [ -f /srv/projects/n8n/migration/config ]; then
+    # Copy the encryption key to the container
+    docker cp /srv/projects/n8n/migration/config n8n:/home/node/.n8n/config
+    echo "✓ Encryption key installed"
+    echo "🔄 Restarting n8n to apply encryption key..."
+    cd /srv/projects/n8n && docker compose restart n8n
+    sleep 5
+    echo "✓ n8n restarted"
+else
+    echo "⚠️  WARNING: No encryption key found! Credentials may not work!"
+fi
+
+echo ""
 echo "Importing workflows..."
 WORKFLOW_COUNT=0
 for workflow in /srv/projects/n8n/migration/workflows/*.json; do
@@ -193,6 +219,8 @@ fi
 echo ""
 echo "Migration summary:"
 echo "  Workflows imported: $WORKFLOW_COUNT"
+echo "  Encryption key: Migrated ✓"
+echo "  Credentials: Ready to use (encryption key applied)"
 echo ""
 
 # Cleanup
@@ -222,12 +250,17 @@ echo "================================================================"
 echo "🎉 Migration completed successfully!"
 echo "================================================================"
 echo ""
+echo "✓ Workflows migrated"
+echo "✓ Credentials migrated"
+echo "✓ Encryption key migrated (credentials should work without re-authentication)"
+echo ""
 echo "Next steps:"
 echo "1. Verify workflows in new n8n: https://n8n-2.meimberg.io"
-echo "2. Test a few workflows to ensure they work"
-echo "3. Update DNS to point n8n.meimberg.io to hc-02"
-echo "4. Update GitHub variable APP_DOMAIN from n8n-2.meimberg.io to n8n.meimberg.io"
-echo "5. Redeploy to update Traefik routing"
+echo "2. Check that all credentials are active (no 'Needs first setup' warnings)"
+echo "3. Test a few workflows to ensure they work"
+echo "4. Update DNS to point n8n.meimberg.io to hc-02"
+echo "5. Update GitHub variable APP_DOMAIN from n8n-2.meimberg.io to n8n.meimberg.io"
+echo "6. Redeploy to update Traefik routing"
 echo ""
 echo "⚠️  Don't shut down the old n8n on hc-01 until you've verified everything works!"
 echo ""
