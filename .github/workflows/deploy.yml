@@ -51,6 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     env:
+      PROJECT_NAME: n8n
       APP_DOMAIN: ${{ vars.APP_DOMAIN }}
       DOCKER_IMAGE: ghcr.io/${{ github.repository }}:latest
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -67,7 +68,7 @@ jobs:
         username: ${{ vars.SERVER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         source: "docker-compose.prod.yml"
-        target: "/srv/projects/n8n/"
+        target: "/srv/projects/${{ env.PROJECT_NAME }}/"
     
     - name: Deploy to server
       uses: appleboy/ssh-action@v1.0.3
@@ -75,7 +76,7 @@ jobs:
         host: ${{ vars.SERVER_HOST }}
         username: ${{ vars.SERVER_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        envs: GITHUB_TOKEN,DOCKER_IMAGE,APP_DOMAIN,WEBHOOK_URL
+        envs: PROJECT_NAME,GITHUB_TOKEN,DOCKER_IMAGE,APP_DOMAIN,WEBHOOK_URL
         script: |
           set -e
           
@@ -83,13 +84,14 @@ jobs:
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           
           # Create project directory
-          mkdir -p /srv/projects/n8n
-          cd /srv/projects/n8n
+          mkdir -p /srv/projects/${PROJECT_NAME}
+          cd /srv/projects/${PROJECT_NAME}
           
           # Create backup directory (will be owned by UID 1000 via container)
-          mkdir -p /srv/projects/n8n/backup
+          mkdir -p /srv/backups/${PROJECT_NAME}
           
           # Substitute variables in docker-compose template
+          export PROJECT_NAME="${PROJECT_NAME}"
           export DOCKER_IMAGE="${DOCKER_IMAGE}"
           export APP_DOMAIN="${APP_DOMAIN}"
           export WEBHOOK_URL="${WEBHOOK_URL}"
@@ -107,11 +109,11 @@ jobs:
           sleep 5
           
           # Verify deployment
-          if docker ps | grep -q n8n; then
-            echo "✅ n8n deployed successfully!"
-            echo "🌐 Accessible at: https://${APP_DOMAIN}"
+          if docker ps | grep -q ${PROJECT_NAME}; then
+            echo "✅ ${PROJECT_NAME} deployed successfully!"
+            echo "🌐 Accessible at: https://${{ env.APP_DOMAIN }}"
           else
             echo "❌ Deployment failed - container not running"
-            docker logs n8n
+            docker logs ${PROJECT_NAME}
             exit 1
           fi
